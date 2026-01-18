@@ -8,7 +8,6 @@ const STORAGE_KEY = 'timesheet_entries';
 
 const TimesheetPage = () => {
     const [entries, setEntries] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [editId, setEditId] = useState(null);
 
     // Form State
@@ -30,7 +29,6 @@ const TimesheetPage = () => {
     }, []);
 
     const fetchEntries = () => {
-        setLoading(true);
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
             const allEntries = saved ? JSON.parse(saved) : [];
@@ -38,8 +36,6 @@ const TimesheetPage = () => {
             setEntries(sorted);
         } catch (error) {
             console.error('Error fetching entries:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
