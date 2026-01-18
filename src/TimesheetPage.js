@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { format, parseISO, isMonday } from 'date-fns';
+import { format, parseISO, isMonday, isSunday } from 'date-fns';
 import './TimesheetPage.css';
 
-const CATEGORIES = ['project', 'MS', 'Training', 'certification'];
+const CATEGORIES = ['project', 'MS', 'Training', 'certification', 'Holiday'];
 const EFFORT_TYPES = ['billable', 'nonbillable'];
 const STORAGE_KEY = 'timesheet_entries';
 
 const TimesheetPage = () => {
     const [entries, setEntries] = useState([]);
     const [editId, setEditId] = useState(null);
+    const [showSummary, setShowSummary] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -20,8 +21,9 @@ const TimesheetPage = () => {
         hours: ''
     });
 
-    const showMondayReminder = useMemo(() => {
-        return isMonday(new Date()) && entries.length > 0;
+    const showResetReminder = useMemo(() => {
+        const today = new Date();
+        return (isMonday(today) || isSunday(today)) && entries.length > 0;
     }, [entries]);
 
     useEffect(() => {
@@ -49,7 +51,7 @@ const TimesheetPage = () => {
             if (name === 'category') {
                 if (['project', 'MS'].includes(value)) {
                     newData.effort_type = 'billable';
-                } else if (['Training', 'certification'].includes(value)) {
+                } else if (['Training', 'certification', 'Holiday'].includes(value)) {
                     newData.effort_type = 'nonbillable';
                 }
             }
@@ -172,7 +174,9 @@ const TimesheetPage = () => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `timesheet_export_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+        const startDate = entries[0].date;
+        const endDate = entries[entries.length - 1].date;
+        link.setAttribute("download", `timesheet_${startDate}_to_${endDate}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -186,27 +190,53 @@ const TimesheetPage = () => {
         let total = 0;
         let billable = 0;
         let nonBillable = 0;
-        const categoryTotals = {};
+        const billableCategories = {};
+        const nonBillableCategories = {};
 
         entries.forEach(e => {
             const h = parseFloat(e.hours) || 0;
             total += h;
-            if (e.effort_type === 'billable') billable += h;
-            else nonBillable += h;
-
-            categoryTotals[e.category] = (categoryTotals[e.category] || 0) + h;
+            if (e.effort_type === 'billable') {
+                billable += h;
+                billableCategories[e.category] = (billableCategories[e.category] || 0) + h;
+            } else {
+                nonBillable += h;
+                nonBillableCategories[e.category] = (nonBillableCategories[e.category] || 0) + h;
+            }
         });
 
-        return { total, billable, nonBillable, categoryTotals };
+        return { total, billable, nonBillable, billableCategories, nonBillableCategories };
     }, [entries]);
+
+    const handleCopySummary = () => {
+        let text = `Weekly Timesheet Summary\n`;
+        text += `------------------------\n\n`;
+
+        text += `Billable: ${summary.billable}h\n`;
+        Object.entries(summary.billableCategories).forEach(([cat, hours]) => {
+            text += `  ${cat}: ${hours}h\n`;
+        });
+
+        text += `\nNon-Billable: ${summary.nonBillable}h\n`;
+        Object.entries(summary.nonBillableCategories).forEach(([cat, hours]) => {
+            text += `  ${cat}: ${hours}h\n`;
+        });
+
+        text += `\n------------------------\n`;
+        text += `Total: ${summary.total}h\n`;
+
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Summary copied to clipboard!');
+        });
+    };
 
     return (
         <div className="timesheet-container">
             <h1 className="app-title">Nehu's time sheets</h1>
 
-            {showMondayReminder && (
+            {showResetReminder && (
                 <div className="monday-reminder">
-                    👋 It's Monday! Don't forget to <strong>Reset & Export</strong> last week's data if you haven't already.
+                    👋 It's Sunday/Monday! Don't forget to <strong>Reset & Export</strong> your data for the new week.
                 </div>
             )}
 
@@ -226,9 +256,14 @@ const TimesheetPage = () => {
                     </div>
                 </div>
 
-                <button onClick={handleResetAndExport} className="reset-btn" title="Download & Reset">
-                    ⚠️ Reset & Export CSV
-                </button>
+                <div className="header-actions">
+                    <button onClick={() => setShowSummary(true)} className="summary-btn" title="View Summary">
+                        📊 Summarize
+                    </button>
+                    <button onClick={handleResetAndExport} className="reset-btn" title="Download & Reset">
+                        ⚠️ Reset & Export CSV
+                    </button>
+                </div>
             </div>
 
             <form className="entry-form" onSubmit={handleSubmit}>
@@ -269,8 +304,13 @@ const TimesheetPage = () => {
                     </select>
                 </div>
                 <div className="form-group">
-                    <label>Effort</label>
-                    <select name="effort_type" value={formData.effort_type} onChange={handleInputChange}>
+                    <label>Effort (Auto-selected)</label>
+                    <select
+                        name="effort_type"
+                        value={formData.effort_type}
+                        disabled
+                        className="disabled-select"
+                    >
                         {EFFORT_TYPES.map(e => <option key={e} value={e}>{e}</option>)}
                     </select>
                 </div>
@@ -334,6 +374,68 @@ const TimesheetPage = () => {
                     ))
                 )}
             </div>
+
+            {showSummary && (
+                <div className="modal-overlay" onClick={() => setShowSummary(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <h2>Weekly Summary</h2>
+
+                        <div className="summary-list-container">
+                            {/* Billable Section */}
+                            <div className="summary-group">
+                                <div className="group-header billable-header">
+                                    <h3>Billable</h3>
+                                    <span className="group-total">{summary.billable}h</span>
+                                </div>
+                                <div className="group-list">
+                                    {Object.entries(summary.billableCategories).map(([cat, hours]) => (
+                                        <div key={cat} className="group-item">
+                                            <span>{cat}</span>
+                                            <span>{hours}h</span>
+                                        </div>
+                                    ))}
+                                    {Object.keys(summary.billableCategories).length === 0 && (
+                                        <div className="empty-group">No billable hours</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Non-Billable Section */}
+                            <div className="summary-group">
+                                <div className="group-header non-billable-header">
+                                    <h3>Non-Billable</h3>
+                                    <span className="group-total">{summary.nonBillable}h</span>
+                                </div>
+                                <div className="group-list">
+                                    {Object.entries(summary.nonBillableCategories).map(([cat, hours]) => (
+                                        <div key={cat} className="group-item">
+                                            <span>{cat}</span>
+                                            <span>{hours}h</span>
+                                        </div>
+                                    ))}
+                                    {Object.keys(summary.nonBillableCategories).length === 0 && (
+                                        <div className="empty-group">No non-billable hours</div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="total-footer">
+                            <span>Total Hours</span>
+                            <strong>{summary.total}h</strong>
+                        </div>
+
+                        <div className="modal-actions">
+                            <button className="copy-btn" onClick={handleCopySummary}>
+                                📋 Copy
+                            </button>
+                            <button className="close-modal-btn" onClick={() => setShowSummary(false)}>
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
