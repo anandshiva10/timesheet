@@ -208,6 +208,24 @@ const TimesheetPage = () => {
         return { total, billable, nonBillable, billableCategories, nonBillableCategories };
     }, [entries]);
 
+    const groupedEntries = useMemo(() => {
+        const groups = {};
+        entries.forEach(entry => {
+            if (!groups[entry.date]) {
+                groups[entry.date] = {
+                    date: entry.date,
+                    totalHours: 0,
+                    items: []
+                };
+            }
+            groups[entry.date].items.push(entry);
+            groups[entry.date].totalHours += parseFloat(entry.hours) || 0;
+        });
+
+        // Convert to array and sort by date
+        return Object.values(groups).sort((a, b) => a.date.localeCompare(b.date));
+    }, [entries]);
+
     const handleCopySummary = () => {
         let text = `Weekly Timesheet Summary\n`;
         text += `------------------------\n\n`;
@@ -339,37 +357,47 @@ const TimesheetPage = () => {
             </form>
 
             <div className="entries-list">
-                {entries.length === 0 ? (
+                {groupedEntries.length === 0 ? (
                     <div className="no-entries">No entries for this week. Add one above!</div>
                 ) : (
-                    entries.map(entry => (
-                        <div
-                            key={entry.id}
-                            className={`entry-row ${entry.effort_type}`}
-                            onClick={() => handleEdit(entry)}
-                        >
-                            <div className="entry-day">
-                                {format(parseISO(entry.date), 'EEEE')}
-                                <span className="entry-date-small">{entry.date}</span>
+                    groupedEntries.map(group => (
+                        <div key={group.date} className="date-group">
+                            <div className="date-group-header">
+                                <span className="group-date">
+                                    {format(parseISO(group.date), 'EEEE, MMM do')}
+                                </span>
+                                <span className="group-day-total">
+                                    {group.totalHours}h
+                                </span>
                             </div>
-                            <div className="entry-main">
-                                <div className="entry-task">{entry.task}</div>
-                                <div className="entry-desc">{entry.description}</div>
+                            <div className="date-group-items">
+                                {group.items.map(entry => (
+                                    <div
+                                        key={entry.id}
+                                        className={`entry-row ${entry.effort_type}`}
+                                        onClick={() => handleEdit(entry)}
+                                    >
+                                        <div className="entry-main">
+                                            <div className="entry-task">{entry.task}</div>
+                                            <div className="entry-desc">{entry.description}</div>
+                                        </div>
+                                        <div className="entry-meta">
+                                            <span className="tag category">{entry.category}</span>
+                                            <span className="tag effort">{entry.effort_type}</span>
+                                        </div>
+                                        <div className="entry-hours">
+                                            {entry.hours}h
+                                        </div>
+                                        <button
+                                            className="delete-btn"
+                                            onClick={(e) => handleDelete(e, entry.id)}
+                                            title="Delete Entry"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="entry-meta">
-                                <span className="tag category">{entry.category}</span>
-                                <span className="tag effort">{entry.effort_type}</span>
-                            </div>
-                            <div className="entry-hours">
-                                {entry.hours}h
-                            </div>
-                            <button
-                                className="delete-btn"
-                                onClick={(e) => handleDelete(e, entry.id)}
-                                title="Delete Entry"
-                            >
-                                🗑️
-                            </button>
                         </div>
                     ))
                 )}
