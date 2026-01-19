@@ -138,7 +138,7 @@ const TimesheetPage = () => {
 
     const handleDelete = (e, id) => {
         e.stopPropagation(); // Prevent triggering edit
-        if (window.confirm('Are you sure you want to delete this entry?')) {
+        if (window.confirm('Anthey na? Fix ah??')) {
             const saved = localStorage.getItem(STORAGE_KEY);
             let allEntries = saved ? JSON.parse(saved) : [];
             allEntries = allEntries.filter(entry => entry.id !== id);
@@ -196,7 +196,8 @@ const TimesheetPage = () => {
         entries.forEach(e => {
             const h = parseFloat(e.hours) || 0;
             total += h;
-            if (e.effort_type === 'billable') {
+            // Case-insensitive check or check for both Title Case and lowercase for backward compatibility
+            if (e.effort_type === 'Billable' || e.effort_type === 'billable') {
                 billable += h;
                 billableCategories[e.category] = (billableCategories[e.category] || 0) + h;
             } else {
@@ -254,7 +255,7 @@ const TimesheetPage = () => {
 
             {showResetReminder && (
                 <div className="monday-reminder">
-                    👋 It's Sunday/Monday! Don't forget to <strong>Reset & Export</strong> your data for the new week.
+                    Monday ivaala! <strong>Reset chey timesheet...</strong> Ledhantey data assam aithadii.
                 </div>
             )}
 
@@ -370,6 +371,11 @@ const TimesheetPage = () => {
                                     {group.totalHours}h
                                 </span>
                             </div>
+                            {group.totalHours > 8 && (
+                                <div className="overtime-warning">
+                                    uko uko.. konchem takkuva pani chey
+                                </div>
+                            )}
                             <div className="date-group-items">
                                 {group.items.map(entry => (
                                     <div

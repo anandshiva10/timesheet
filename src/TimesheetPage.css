@@ -195,6 +195,26 @@
     color: #586069;
 }
 
+.overtime-warning {
+    background-color: #ffeef0;
+    color: #b31d28;
+    padding: 8px 15px;
+    font-size: 0.9em;
+    font-weight: 500;
+    border-bottom: 1px solid #ffeaeb;
+    animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
 .date-group-items {
     display: flex;
     flex-direction: column;
