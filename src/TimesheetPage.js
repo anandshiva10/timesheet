@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { format, parseISO, isMonday, isSunday } from 'date-fns';
 import './TimesheetPage.css';
 
-const CATEGORIES = ['project', 'MS', 'Training', 'certification', 'Holiday'];
-const EFFORT_TYPES = ['billable', 'nonbillable'];
+const CATEGORIES = ['Project', 'MS', 'Training', 'Certification', 'Holiday'];
+const EFFORT_TYPES = ['Billable', 'Non-Billable'];
 const STORAGE_KEY = 'timesheet_entries';
 
 const TimesheetPage = () => {
@@ -49,10 +49,10 @@ const TimesheetPage = () => {
 
             // Auto-select effort type
             if (name === 'category') {
-                if (['project', 'MS'].includes(value)) {
-                    newData.effort_type = 'billable';
-                } else if (['Training', 'certification', 'Holiday'].includes(value)) {
-                    newData.effort_type = 'nonbillable';
+                if (['Project', 'MS'].includes(value)) {
+                    newData.effort_type = 'Billable';
+                } else if (['Training', 'Certification', 'Holiday'].includes(value)) {
+                    newData.effort_type = 'Non-Billable';
                 }
             }
 
