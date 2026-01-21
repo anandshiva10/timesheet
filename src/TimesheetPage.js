@@ -5,11 +5,20 @@ import './TimesheetPage.css';
 const CATEGORIES = ['Project', 'MS', 'Training', 'Certification', 'Holiday'];
 const EFFORT_TYPES = ['Billable', 'Non-Billable'];
 const STORAGE_KEY = 'timesheet_entries';
+const TRIAGE_STORAGE_KEY = 'triage_shifts';
 
 const TimesheetPage = () => {
     const [entries, setEntries] = useState([]);
     const [editId, setEditId] = useState(null);
     const [showSummary, setShowSummary] = useState(false);
+
+    // Triage State
+    const [triageEntries, setTriageEntries] = useState([]);
+    const [showTriageForm, setShowTriageForm] = useState(false);
+    const [triageFormData, setTriageFormData] = useState({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        shiftType: 's1'
+    });
 
     // Form State
     const [formData, setFormData] = useState({
@@ -28,6 +37,7 @@ const TimesheetPage = () => {
 
     useEffect(() => {
         fetchEntries();
+        fetchTriageEntries();
     }, []);
 
     const fetchEntries = () => {
@@ -38,6 +48,18 @@ const TimesheetPage = () => {
             setEntries(sorted);
         } catch (error) {
             console.error('Error fetching entries:', error);
+        }
+    };
+
+    const fetchTriageEntries = () => {
+        try {
+            const saved = localStorage.getItem(TRIAGE_STORAGE_KEY);
+            const all = saved ? JSON.parse(saved) : [];
+            // Sort by date desc
+            const sorted = all.sort((a, b) => b.date.localeCompare(a.date));
+            setTriageEntries(sorted);
+        } catch (error) {
+            console.error('Error fetching triage entries:', error);
         }
     };
 
@@ -249,6 +271,54 @@ const TimesheetPage = () => {
         });
     };
 
+    // Triage Handlers
+    const handleTriageInputChange = (e) => {
+        const { name, value } = e.target;
+        setTriageFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleTriageSubmit = (e) => {
+        e.preventDefault();
+        if (!triageFormData.date || !triageFormData.shiftType) return;
+
+        const newEntry = {
+            id: crypto.randomUUID(),
+            date: triageFormData.date,
+            shiftType: triageFormData.shiftType,
+            createdAt: new Date().toISOString()
+        };
+
+        const updated = [newEntry, ...triageEntries];
+        // Sort again just in case
+        updated.sort((a, b) => b.date.localeCompare(a.date));
+
+        setTriageEntries(updated);
+        localStorage.setItem(TRIAGE_STORAGE_KEY, JSON.stringify(updated));
+
+        // Reset form
+        setTriageFormData({
+            date: format(new Date(), 'yyyy-MM-dd'),
+            shiftType: 's1'
+        });
+        setShowTriageForm(false);
+    };
+
+    const handleDeleteTriage = (id) => {
+        if (window.confirm('Delete this shift log?')) {
+            const updated = triageEntries.filter(e => e.id !== id);
+            setTriageEntries(updated);
+            localStorage.setItem(TRIAGE_STORAGE_KEY, JSON.stringify(updated));
+        }
+    };
+
+    const handleClearAllTriage = () => {
+        if (triageEntries.length === 0) return;
+        if (window.confirm('Are you sure you want to clear ALL triage shifts? This cannot be undone.')) {
+            setTriageEntries([]);
+            localStorage.removeItem(TRIAGE_STORAGE_KEY);
+        }
+    };
+
     return (
         <div className="timesheet-container">
             <h1 className="app-title">Nehu's time sheets</h1>
@@ -407,6 +477,92 @@ const TimesheetPage = () => {
                         </div>
                     ))
                 )}
+            </div>
+
+            {/* Triage Shifts Section */}
+            <div className="triage-section">
+                <hr className="section-divider" />
+                <div className="triage-header">
+                    <h2>Triage Shifts</h2>
+                    <div className="triage-actions">
+                        <button
+                            className="clear-triage-btn"
+                            onClick={handleClearAllTriage}
+                            disabled={triageEntries.length === 0}
+                            title="Clear All Triage Shifts"
+                        >
+                            Clear All
+                        </button>
+                        <button
+                            className="log-shift-btn"
+                            onClick={() => setShowTriageForm(!showTriageForm)}
+                        >
+                            {showTriageForm ? 'Cancel Log' : 'Log Shift'}
+                        </button>
+                    </div>
+                </div>
+
+                {showTriageForm && (
+                    <form className="triage-form" onSubmit={handleTriageSubmit}>
+                        <div className="form-group">
+                            <label>Date</label>
+                            <input
+                                type="date"
+                                name="date"
+                                value={triageFormData.date}
+                                onChange={handleTriageInputChange}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Shift Type</label>
+                            <select
+                                name="shiftType"
+                                value={triageFormData.shiftType}
+                                onChange={handleTriageInputChange}
+                            >
+                                <option value="s1">s1</option>
+                                <option value="s2">s2</option>
+                                <option value="s3">s3</option>
+                            </select>
+                        </div>
+                        <button type="submit" className="save-shift-btn">
+                            Save Shift
+                        </button>
+                    </form>
+                )}
+
+                <div className="triage-list">
+                    {triageEntries.length === 0 ? (
+                        <p className="no-triage">No triage shifts logged yet.</p>
+                    ) : (
+                        <table className="triage-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Shift Type</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {triageEntries.map(entry => (
+                                    <tr key={entry.id}>
+                                        <td>{entry.date}</td>
+                                        <td>{entry.shiftType}</td>
+                                        <td>
+                                            <button
+                                                className="delete-triage-btn"
+                                                onClick={() => handleDeleteTriage(entry.id)}
+                                            >
+                                                ×
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
             </div>
 
             {showSummary && (
