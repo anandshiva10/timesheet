@@ -11,6 +11,7 @@ const TimesheetPage = () => {
     const [entries, setEntries] = useState([]);
     const [editId, setEditId] = useState(null);
     const [showSummary, setShowSummary] = useState(false);
+    const [showBirthdayWish, setShowBirthdayWish] = useState(true);
 
     // Triage State
     const [triageEntries, setTriageEntries] = useState([]);
@@ -321,6 +322,20 @@ const TimesheetPage = () => {
 
     return (
         <div className="timesheet-container">
+            {showBirthdayWish && (
+                <div className="birthday-banner" role="status" aria-live="polite">
+                    <span>Happy Valentines Day ❤️❤️! Take care and have a great day!</span>
+                    <button
+                        type="button"
+                        className="birthday-close-btn"
+                        onClick={() => setShowBirthdayWish(false)}
+                        aria-label="Close birthday message"
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
+
             <h1 className="app-title">Nehu's time sheets</h1>
 
             {showResetReminder && (
